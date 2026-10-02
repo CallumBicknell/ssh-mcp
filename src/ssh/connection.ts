@@ -333,17 +333,24 @@ export class SshConnection {
    * SFTP does not expand "~" itself, while remote shells do — this keeps
    * tool arguments consistent between ssh_exec and the SFTP-backed tools.
    */
+  private cachedHome?: string;
+
   async resolvePath(path: string): Promise<string> {
     if (path !== "~" && !path.startsWith("~/")) {
       return path;
     }
     try {
-      const sftp = await this.getSftp();
-      return await new Promise<string>((resolve, reject) => {
-        sftp.realpath(path, (err, resolved) => (err ? reject(err) : resolve(resolved)));
-      });
+      if (this.cachedHome === undefined) {
+        const result = await this.exec("printf '%s' \"$HOME\"", 10_000, 4096);
+        const home = result.stdout.trim();
+        if (!home || result.exitCode !== 0) {
+          return path;
+        }
+        this.cachedHome = home;
+      }
+      return this.cachedHome + path.slice(1);
     } catch {
-      // Fall through and let the underlying call fail with its own clear error.
+      // Fall back to the original and let the underlying call fail clearly.
       return path;
     }
   }
