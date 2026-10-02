@@ -33,7 +33,7 @@ From a terminal:
 ssh-mcp
 ```
 
-It should print `ssh-mcp <version>: running on stdio` to stderr and wait. Stop it with Ctrl+C. Any other process or container can also be validated with:
+It should print `ssh-mcp 0.2.0: running on stdio` to stderr and wait. Stop it with Ctrl+C. Verify the CLI flags with `ssh-mcp --version` and `ssh-mcp --help`. Any other process or container can also be validated with:
 
 ```bash
 npx -y @callumbicknell/ssh-mcp

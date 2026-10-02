@@ -82,6 +82,7 @@ The server speaks MCP on **stdio**; all logs go to **stderr**.
 | `ssh_write_file` | Atomically write a remote file (temp file + rename; never creates parent dirs) |
 | `ssh_list_directory` | Compact directory listing with type, size, mode, mtime |
 | `ssh_stat` | File/dir metadata: type, size, permissions, mtime, uid/gid |
+| `ssh_tunnel` / `ssh_tunnels` / `ssh_tunnel_stop` | Persistent local port-forwards over the pooled SSH connection |
 
 ### `ssh_exec` result shape
 
