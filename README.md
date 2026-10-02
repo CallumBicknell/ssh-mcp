@@ -21,7 +21,7 @@ Remote machines
 
 ## Installation
 
-From npm (once published):
+From npm:
 
 ```bash
 npm install -g @callumbicknell/ssh-mcp
@@ -57,7 +57,7 @@ Local/source usage:
 }
 ```
 
-npm usage (after publishing/installing):
+npm usage:
 
 ```json
 {
