@@ -7,7 +7,7 @@ import { ConnectionManager } from "./ssh/manager.js";
 import { TunnelManager } from "./ssh/tunnels.js";
 import { registerTools } from "./tools/register.js";
 
-const VERSION = "0.2.0";
+const VERSION = "0.2.1";
 
 function handleFlags(): boolean {
   if (process.argv.includes("--version") || process.argv.includes("-v")) {
