@@ -18,6 +18,23 @@ describe("capOutput", () => {
     expect(out.truncated).toBe(true);
     expect(out.text).toBe("é");
   });
+
+  it("handles output exactly at the limit without truncation", () => {
+    const out = capOutput("abcde", 5);
+    expect(out).toEqual({ text: "abcde", truncated: false, bytes: 5 });
+  });
+
+  it("handles output one byte over the limit", () => {
+    const out = capOutput("abcdef", 5);
+    expect(out.text).toBe("abcde");
+    expect(out.truncated).toBe(true);
+  });
+
+  it("never emits U+FFFD when cutting emoji", () => {
+    const out = capOutput("😀😀😀", 5); // 4 bytes each in UTF-8
+    expect(out.text).toBe("😀");
+    expect(out.text).not.toContain("�");
+  });
 });
 
 describe("OutputCapper", () => {
@@ -35,5 +52,14 @@ describe("OutputCapper", () => {
     capper.push("more");
     expect(capper.result().text).toBe("abcde");
     expect(capper.result().truncated).toBe(true);
+  });
+
+  it("does not emit U+FFFD when a multibyte character straddles the limit", () => {
+    const capper = new OutputCapper(5);
+    capper.push("😀😀"); // 8 bytes, cap at 5 lands mid-second emoji
+    const out = capper.result();
+    expect(out.text).toBe("😀");
+    expect(out.text).not.toContain("�");
+    expect(out.truncated).toBe(true);
   });
 });
