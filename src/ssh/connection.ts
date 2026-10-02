@@ -294,6 +294,26 @@ export class SshConnection {
     );
   }
 
+  /**
+   * Resolves a leading "~" in a remote path to the remote home directory.
+   * SFTP does not expand "~" itself, while remote shells do — this keeps
+   * tool arguments consistent between ssh_exec and the SFTP-backed tools.
+   */
+  async resolvePath(path: string): Promise<string> {
+    if (path !== "~" && !path.startsWith("~/")) {
+      return path;
+    }
+    try {
+      const sftp = await this.getSftp();
+      return await new Promise<string>((resolve, reject) => {
+        sftp.realpath(path, (err, resolved) => (err ? reject(err) : resolve(resolved)));
+      });
+    } catch {
+      // Fall through and let the underlying call fail with its own clear error.
+      return path;
+    }
+  }
+
   stat(path: string, timeoutMs: number): Promise<FileStat> {
     return this.track(() =>
       withTimeout(

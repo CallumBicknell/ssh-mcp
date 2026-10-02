@@ -21,7 +21,8 @@ export function registerReadFileTool(server: McpServer, manager: ConnectionManag
           throw new Error("path must be a non-empty string");
         }
         const conn = await manager.getConnection(host);
-        const result = await conn.readFile(path, settings.maxOutputBytes, settings.operationTimeoutMs);
+        const resolved = await conn.resolvePath(path);
+        const result = await conn.readFile(resolved, settings.maxOutputBytes, settings.operationTimeoutMs);
         let text = result.text;
         if (result.truncated) {
           text += `\n\n[content truncated at ${settings.maxOutputBytes} bytes]`;

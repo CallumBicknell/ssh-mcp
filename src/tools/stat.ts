@@ -21,7 +21,8 @@ export function registerStatTool(server: McpServer, manager: ConnectionManager, 
           throw new Error("path must be a non-empty string");
         }
         const conn = await manager.getConnection(host);
-        const stat = await conn.stat(path, settings.operationTimeoutMs);
+        const resolved = await conn.resolvePath(path);
+        const stat = await conn.stat(resolved, settings.operationTimeoutMs);
         return {
           content: [
             {

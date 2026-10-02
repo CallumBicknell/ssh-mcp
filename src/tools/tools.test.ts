@@ -115,7 +115,7 @@ describe("ssh_exec handler", () => {
 describe("ssh_read_file handler", () => {
   it("returns file contents and truncation notice", async () => {
     const { server, tools } = makeServer();
-    const conn = { readFile: vi.fn(async () => ({ text: "file body", truncated: true, bytes: 9 })) };
+    const conn = { resolvePath: async (p: string) => p, readFile: vi.fn(async () => ({ text: "file body", truncated: true, bytes: 9 })) };
     registerTools(server as never, makeManager(conn), DEFAULT_SETTINGS, null);
     const tool = tools.find((t) => t.name === "ssh_read_file")!;
     const res = await tool.handler({ host: "snow", path: "/etc/hostname" });
@@ -127,7 +127,7 @@ describe("ssh_read_file handler", () => {
 describe("ssh_write_file handler", () => {
   it("writes and reports success", async () => {
     const { server, tools } = makeServer();
-    const conn = { writeFile: vi.fn(async () => {}) };
+    const conn = { resolvePath: async (p: string) => p, writeFile: vi.fn(async () => {}) };
     registerTools(server as never, makeManager(conn), DEFAULT_SETTINGS, null);
     const tool = tools.find((t) => t.name === "ssh_write_file")!;
     const res = await tool.handler({ host: "snow", path: "/tmp/x", content: "hello" });
@@ -137,7 +137,7 @@ describe("ssh_write_file handler", () => {
 
   it("surfaces write errors", async () => {
     const { server, tools } = makeServer();
-    const conn = { writeFile: vi.fn(async () => Promise.reject(new Error("No such file or directory"))) };
+    const conn = { resolvePath: async (p: string) => p, writeFile: vi.fn(async () => Promise.reject(new Error("No such file or directory"))) };
     registerTools(server as never, makeManager(conn), DEFAULT_SETTINGS, null);
     const tool = tools.find((t) => t.name === "ssh_write_file")!;
     const res = await tool.handler({ host: "snow", path: "/no/such/dir/x", content: "hi" });
@@ -149,7 +149,7 @@ describe("ssh_write_file handler", () => {
 describe("ssh_list_directory handler", () => {
   it("formats entries compactly", async () => {
     const { server, tools } = makeServer();
-    const conn = {
+    const conn = { resolvePath: async (p: string) => p,
       listDirectory: vi.fn(async () => [
         { name: "etc", type: "directory", size: 4096, modifiedAt: "2026-01-01T00:00:00.000Z", mode: 0o40755 },
         { name: "hosts", type: "file", size: 220, modifiedAt: "2026-01-01T00:00:00.000Z", mode: 0o100644 },

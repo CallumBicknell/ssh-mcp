@@ -17,8 +17,8 @@ export function registerListDirectoryTool(server: McpServer, manager: Connection
     async ({ host, path }) => {
       try {
         assertValidHost(host);
-        const target = path === undefined || path.trim().length === 0 ? "." : path;
         const conn = await manager.getConnection(host);
+        const target = path === undefined || path.trim().length === 0 ? "." : await conn.resolvePath(path);
         const entries = await conn.listDirectory(target, settings.operationTimeoutMs);
         if (entries.length === 0) {
           return { content: [{ type: "text" as const, text: `(empty directory: ${target})` }] };

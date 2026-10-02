@@ -26,7 +26,8 @@ export function registerWriteFileTool(server: McpServer, manager: ConnectionMana
           throw new Error("content must be a string");
         }
         const conn = await manager.getConnection(host);
-        await conn.writeFile(path, content, settings.operationTimeoutMs);
+        const resolved = await conn.resolvePath(path);
+        await conn.writeFile(resolved, content, settings.operationTimeoutMs);
         return {
           content: [
             {
