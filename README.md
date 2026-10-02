@@ -146,6 +146,14 @@ ssh_list_directory({host: "snow", path: "~/stacks"})
 ssh_stat({host: "snow", path: "/etc/nginx/nginx.conf"})
 ```
 
+## Quick install (one-liner for an AI agent)
+
+Copy this into any agent that can read URLs and follow instructions:
+
+```text
+Read https://raw.githubusercontent.com/CallumBicknell/ssh-mcp/main/AGENT_INSTALL.md and follow it exactly.
+```
+
 ## Development
 
 ```bash
