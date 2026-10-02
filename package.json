@@ -1,5 +1,5 @@
 {
-  "name": "ssh-mcp",
+  "name": "@callumbicknell/ssh-mcp",
   "version": "0.1.0",
   "description": "MCP server for interacting with remote machines over SSH using your existing OpenSSH configuration",
   "license": "MIT",
@@ -20,7 +20,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "start": "node dist/index.js",
-    "prepublishOnly": "pnpm run typecheck && pnpm run test && pnpm run build"
+    "prepublishOnly": "pnpm run typecheck && pnpm run test && pnpm run build",
+    "dev": "tsc -p tsconfig.build.json --watch"
   },
   "repository": {
     "type": "git",
@@ -33,17 +34,7 @@
     "sftp",
     "remote-administration"
   ],
-  "devEngines": {
-    "packageManager": {
-      "name": "pnpm",
-      "version": "12.8.1",
-      "onFail": "download"
-    }
-  },
   "packageManager": "pnpm@12.8.1",
-  "pnpm": {
-    "neverBuiltDependencies": ["cpu-features", "ssh2"]
-  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.31.0",
     "ssh-config": "^5.3.0",
@@ -55,5 +46,6 @@
     "@types/ssh2": "^1.15.6",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"
-  }
+  },
+  "homepage": "https://github.com/CallumBicknell/ssh-mcp#readme"
 }

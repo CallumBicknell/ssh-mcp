@@ -1,0 +1,4 @@
+ignoredBuiltDependencies:
+  - cpu-features
+  - ssh2
+strictDepBuilds: false
