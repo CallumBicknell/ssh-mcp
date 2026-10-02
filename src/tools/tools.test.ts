@@ -130,7 +130,7 @@ describe("ssh_write_file handler", () => {
     const tool = tools.find((t) => t.name === "ssh_write_file")!;
     const res = await tool.handler({ host: "snow", path: "/tmp/x", content: "hello" });
     expect(res.isError).toBeFalsy();
-    expect(conn.writeFile).toHaveBeenCalledWith("/tmp/x", "hello");
+    expect(conn.writeFile).toHaveBeenCalledWith("/tmp/x", "hello", DEFAULT_SETTINGS.operationTimeoutMs);
   });
 
   it("surfaces write errors", async () => {

@@ -19,7 +19,7 @@ export function registerListDirectoryTool(server: McpServer, manager: Connection
         assertValidHost(host);
         const target = path === undefined || path.trim().length === 0 ? "." : path;
         const conn = await manager.getConnection(host);
-        const entries = await conn.listDirectory(target);
+        const entries = await conn.listDirectory(target, settings.operationTimeoutMs);
         if (entries.length === 0) {
           return { content: [{ type: "text" as const, text: `(empty directory: ${target})` }] };
         }
