@@ -43,9 +43,17 @@ export class ConnectionManager {
         "No SSH client configuration found. Expected a config file at ~/.ssh/config (or SSH_CONFIG_PATH).",
       );
     }
-    const resolved = resolveHost(this.config, host);
     const entry: PooledEntry = {};
     this.connections.set(host, entry);
+    let resolved: ResolvedHost;
+    try {
+      resolved = resolveHost(this.config, host);
+    } catch (err) {
+      this.connections.delete(host);
+      throw new Error(
+        `Invalid SSH configuration for host "${host}": ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
     const pending = this.connect(resolved, this.settings.connectionTimeoutMs);
     entry.pending = pending;
     try {
@@ -63,7 +71,12 @@ export class ConnectionManager {
       if (this.connections.get(host) === entry) {
         this.connections.delete(host);
       }
-      throw err;
+      if (err instanceof Error && err.message.includes("closed during establishment")) {
+        throw err;
+      }
+      throw new Error(
+        `SSH connection failed for host "${host}": ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 

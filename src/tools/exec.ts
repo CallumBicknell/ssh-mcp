@@ -10,7 +10,7 @@ export function registerExecTool(server: McpServer, manager: ConnectionManager, 
     "ssh_exec",
     {
       description:
-        "Execute a command on a remote SSH host (identified by its alias in ~/.ssh/config). Returns stdout, stderr, exit code, and whether the command timed out or output was truncated.",
+        "Run a shell command on a remote machine over SSH. `host` is an alias from your local ~/.ssh/config (see `ssh_hosts`). The command runs via a non-interactive remote shell; stdout and stderr are captured, truncated at a configured size limit, and reported together with the exit code. Non-zero exit codes are surfaced, not hidden. Default timeout: 30s (override per call with `timeout`). For long-running jobs, run them in the background remotely and poll.",
       inputSchema: {
         host: z.string().describe("SSH config alias of the target host"),
         command: z.string().describe("Command to execute on the remote host"),

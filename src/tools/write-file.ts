@@ -9,7 +9,7 @@ export function registerWriteFileTool(server: McpServer, manager: ConnectionMana
     "ssh_write_file",
     {
       description:
-        "Write text to a file on a remote SSH host. Parent directories are NOT created automatically; the operation fails if the directory does not exist.",
+        "Write text to a file on a remote SSH host. The write is atomic (temporary file, then rename), so a failed or interrupted write never leaves a partially-written destination. Parent directories are NOT created automatically.",
       inputSchema: {
         host: z.string().describe("SSH config alias of the target host"),
         path: z.string().describe("Absolute or relative path of the file to write"),

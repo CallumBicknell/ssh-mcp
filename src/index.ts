@@ -19,16 +19,29 @@ async function main(): Promise<void> {
 
   const manager = new ConnectionManager(settings, config);
   const server = new McpServer({ name: "ssh-mcp", version: VERSION });
-  registerTools(server, manager, settings);
+  registerTools(server, manager, settings, config);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error(`ssh-mcp ${VERSION}: running on stdio`);
 
+  let shuttingDown = false;
   const shutdown = () => {
-    void manager.closeAll().finally(() => {
-      void server.close().finally(() => process.exit(0));
-    });
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.error("ssh-mcp: shutting down");
+    // Never let a stuck close hang the process forever.
+    const force = setTimeout(() => process.exit(1), 3000);
+    force.unref();
+    void manager
+      .closeAll()
+      .catch(() => {})
+      .then(() => server.close())
+      .catch(() => {})
+      .finally(() => {
+        clearTimeout(force);
+        process.exit(0);
+      });
   };
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);

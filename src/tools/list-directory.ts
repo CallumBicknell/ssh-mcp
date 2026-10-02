@@ -8,7 +8,7 @@ export function registerListDirectoryTool(server: McpServer, manager: Connection
   server.registerTool(
     "ssh_list_directory",
     {
-      description: "List the contents of a directory on a remote SSH host.",
+      description: "List the contents of a directory on a remote SSH host (defaults to the remote user's home directory). Each entry includes type, size, permission bits and modification time.",
       inputSchema: {
         host: z.string().describe("SSH config alias of the target host"),
         path: z.string().optional().describe("Directory path (defaults to the remote user's home directory)"),

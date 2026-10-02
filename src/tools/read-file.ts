@@ -8,7 +8,7 @@ export function registerReadFileTool(server: McpServer, manager: ConnectionManag
   server.registerTool(
     "ssh_read_file",
     {
-      description: "Read the contents of a text file on a remote SSH host.",
+      description: "Read the contents of a text file on a remote SSH host. Large files are truncated at a configured size limit; for very large files prefer ssh_exec with head/tail/grep.",
       inputSchema: {
         host: z.string().describe("SSH config alias of the target host"),
         path: z.string().describe("Absolute or relative path of the file to read"),
