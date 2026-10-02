@@ -127,6 +127,36 @@ export class SshConnection {
     } catch {
       // already gone
     }
+    this.sftpPromise = undefined;
+  }
+
+  /**
+   * One SFTP subsystem per connection, reused across file operations.
+   * Requests are multiplexed over a single channel by the SFTP protocol, so
+   * parallel reads/writes share it safely. If the channel dies, the next call
+   * transparently opens a fresh one.
+   */
+  private sftpPromise?: Promise<import("ssh2").SFTPWrapper>;
+
+  private getSftp(): Promise<import("ssh2").SFTPWrapper> {
+    if (!this.sftpPromise) {
+      this.sftpPromise = new Promise((resolve, reject) => {
+        this.client.sftp((err, sftp) => {
+          if (err) {
+            this.sftpPromise = undefined;
+            reject(err);
+            return;
+          }
+          const reset = () => {
+            this.sftpPromise = undefined;
+          };
+          sftp.on("close", reset);
+          sftp.on("error", reset);
+          resolve(sftp);
+        });
+      });
+    }
+    return this.sftpPromise;
   }
 
   exec(command: string, timeoutMs: number, maxOutputBytes: number): Promise<ExecResult> {
@@ -202,19 +232,16 @@ export class SshConnection {
   readFile(path: string, maxBytes: number, timeoutMs: number): Promise<CappedOutput> {
     return this.track(() =>
       withTimeout(
-        new Promise<CappedOutput>((resolve, reject) => {
-          this.client.sftp((err, sftp) => {
-            if (err) {
-              reject(err);
-              return;
-            }
+        (async () => {
+          const sftp = await this.getSftp();
+          return new Promise<CappedOutput>((resolve, reject) => {
             const capper = new OutputCapper(maxBytes);
             const stream = sftp.createReadStream(path);
             stream.on("data", (data: Buffer) => capper.push(data));
             stream.on("error", reject);
             stream.on("end", () => resolve(capper.result()));
           });
-        }),
+        })(),
         timeoutMs,
       ),
     );
@@ -223,15 +250,10 @@ export class SshConnection {
   writeFile(path: string, content: string, timeoutMs: number): Promise<void> {
     return this.track(() =>
       withTimeout(
-        new Promise<void>((resolve, reject) => {
-          this.client.sftp((err, sftp) => {
-            if (err) {
-              reject(err);
-              return;
-            }
-            atomicWrite(sftp, path, content).then(resolve, reject);
-          });
-        }),
+        (async () => {
+          const sftp = await this.getSftp();
+          await atomicWrite(sftp, path, content);
+        })(),
         timeoutMs,
       ),
     );
@@ -240,12 +262,9 @@ export class SshConnection {
   listDirectory(dirPath: string, timeoutMs: number): Promise<DirEntry[]> {
     return this.track(() =>
       withTimeout(
-        new Promise<DirEntry[]>((resolve, reject) => {
-          this.client.sftp((err, sftp) => {
-            if (err) {
-              reject(err);
-              return;
-            }
+        (async () => {
+          const sftp = await this.getSftp();
+          return new Promise<DirEntry[]>((resolve, reject) => {
             sftp.readdir(dirPath, (err2, list) => {
               if (err2) {
                 reject(err2);
@@ -269,7 +288,7 @@ export class SshConnection {
               );
             });
           });
-        }),
+        })(),
         timeoutMs,
       ),
     );
@@ -278,12 +297,9 @@ export class SshConnection {
   stat(path: string, timeoutMs: number): Promise<FileStat> {
     return this.track(() =>
       withTimeout(
-        new Promise<FileStat>((resolve, reject) => {
-          this.client.sftp((err, sftp) => {
-            if (err) {
-              reject(err);
-              return;
-            }
+        (async () => {
+          const sftp = await this.getSftp();
+          return new Promise<FileStat>((resolve, reject) => {
             sftp.stat(path, (err2, attrs) => {
               if (err2) {
                 reject(err2);
@@ -304,7 +320,7 @@ export class SshConnection {
               });
             });
           });
-        }),
+        })(),
         timeoutMs,
       ),
     );
