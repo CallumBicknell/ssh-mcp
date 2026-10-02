@@ -10,6 +10,7 @@ const SETTINGS: Settings = {
   maxOutputBytes: 1024,
   commandTimeoutMs: 1000,
   connectionTimeoutMs: 1000,
+  operationTimeoutMs: 1000,
   idleTimeoutMs: 50,
 };
 
@@ -92,6 +93,75 @@ describe("ConnectionManager", () => {
     });
     await manager.getConnection("web");
     await manager.closeAll();
+    expect(closed).toBe(1);
+    expect(manager.activeHosts()).toEqual([]);
+  });
+
+  it("shares a single connection across concurrent requests for the same host", async () => {
+    let created = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const manager = new ConnectionManager(SETTINGS, CONFIG, async () => {
+      created++;
+      await gate;
+      return fakeConnection();
+    });
+    const p1 = manager.getConnection("web");
+    const p2 = manager.getConnection("web");
+    const p3 = manager.getConnection("web");
+    release();
+    const [c1, c2, c3] = await Promise.all([p1, p2, p3]);
+    expect(created).toBe(1);
+    expect(c1).toBe(c2);
+    expect(c2).toBe(c3);
+  });
+
+  it("does not evict an actively used connection on idle timeout", async () => {
+    let closed = 0;
+    const active = { count: 1 };
+    const manager = new ConnectionManager(SETTINGS, CONFIG, async () => {
+      return {
+        isAlive: () => true,
+        get activeOperations() {
+          return active.count;
+        },
+        close: () => {
+          closed++;
+        },
+      } as unknown as SshConnection;
+    });
+    await manager.getConnection("web");
+    await sleep(100); // > idleTimeoutMs, but the connection is "busy"
+    expect(closed).toBe(0);
+    expect(manager.activeHosts()).toEqual(["web"]);
+    active.count = 0;
+    await sleep(100);
+    expect(closed).toBe(1);
+    expect(manager.activeHosts()).toEqual([]);
+  });
+
+  it("closes a connection that was superseded during closeAll", async () => {
+    let closed = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const manager = new ConnectionManager(SETTINGS, CONFIG, async () => {
+      await gate;
+      return {
+        isAlive: () => true,
+        close: () => {
+          closed++;
+        },
+      } as unknown as SshConnection;
+    });
+    const pending = manager.getConnection("web");
+    const closing = manager.closeAll();
+    release();
+    await expect(pending).rejects.toThrow(/closed during establishment/);
+    await closing;
     expect(closed).toBe(1);
     expect(manager.activeHosts()).toEqual([]);
   });
