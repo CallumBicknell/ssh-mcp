@@ -4,11 +4,27 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { findConfigPath, loadSshConfig } from "./config/ssh-config.js";
 import { loadSettings } from "./config/settings.js";
 import { ConnectionManager } from "./ssh/manager.js";
+import { TunnelManager } from "./ssh/tunnels.js";
 import { registerTools } from "./tools/register.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
+
+function handleFlags(): boolean {
+  if (process.argv.includes("--version") || process.argv.includes("-v")) {
+    console.log(`ssh-mcp ${VERSION}`);
+    return true;
+  }
+  if (process.argv.includes("--help") || process.argv.includes("-h")) {
+    console.log(
+      `ssh-mcp ${VERSION}\n\nRun as an MCP stdio server. Environment variables:\n  SSH_MCP_MAX_OUTPUT, SSH_MCP_COMMAND_TIMEOUT, SSH_MCP_CONNECTION_TIMEOUT,\n  SSH_MCP_OPERATION_TIMEOUT, SSH_MCP_IDLE_TIMEOUT, SSH_CONFIG_PATH\n\nOptions:\n  --version, -v   print version and exit\n  --help, -h      print this help and exit`,
+    );
+    return true;
+  }
+  return false;
+}
 
 async function main(): Promise<void> {
+  if (handleFlags()) return;
   const settings = loadSettings();
   const configPath = findConfigPath();
   const config = loadSshConfig(configPath);
@@ -18,8 +34,9 @@ async function main(): Promise<void> {
   }
 
   const manager = new ConnectionManager(settings, config);
+  const tunnels = new TunnelManager();
   const server = new McpServer({ name: "ssh-mcp", version: VERSION });
-  registerTools(server, manager, settings, config);
+  registerTools(server, manager, settings, config, tunnels);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
@@ -33,6 +50,11 @@ async function main(): Promise<void> {
     // Never let a stuck close hang the process forever.
     const force = setTimeout(() => process.exit(1), 3000);
     force.unref();
+    try {
+      tunnels.stopAll();
+    } catch {
+      // Already gone.
+    }
     void manager
       .closeAll()
       .catch(() => {})

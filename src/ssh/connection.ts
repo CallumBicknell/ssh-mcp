@@ -105,12 +105,22 @@ export class SshConnection {
 
   static async connect(resolved: ResolvedHost, connectionTimeoutMs: number): Promise<SshConnection> {
     let lastError: unknown;
-    for (const config of authAttempts(resolved, connectionTimeoutMs)) {
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        return await connectOnce(config);
+        for (const config of authAttempts(resolved, connectionTimeoutMs)) {
+          try {
+            return await connectOnce(config);
+          } catch (err) {
+            lastError = err;
+            if (!isAuthError(err)) throw err;
+          }
+        }
+        throw lastError;
       } catch (err) {
         lastError = err;
-        if (!isAuthError(err)) throw err;
+        // Don't retry auth failures; give transient network failures one chance.
+        if (isAuthError(err) || attempt === 1) throw err;
+        await new Promise((resolve) => setTimeout(resolve, 750));
       }
     }
     throw lastError;
@@ -118,6 +128,30 @@ export class SshConnection {
 
   isAlive(): boolean {
     return !this.closed;
+  }
+
+  /** Marks an externally-managed long-lived operation on this connection
+   *  (e.g. an open port-forward tunnel) as activity so idle eviction defers. */
+  acquire(): void {
+    this.active += 1;
+  }
+
+  release(): void {
+    this.active = Math.max(0, this.active - 1);
+  }
+
+  /** Opens a forwarded-tcpip channel from this SSH session to a remote
+   *  destination. Used by port-forward tunnels created via ssh_tunnel. */
+  forwardOut(remoteHost: string, remotePort: number): Promise<import("stream").Duplex> {
+    return new Promise((resolve, reject) => {
+      this.client.forwardOut("127.0.0.1", 0, remoteHost, remotePort, (err, stream) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve(stream as import("stream").Duplex);
+      });
+    });
   }
 
   close(): void {
