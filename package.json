@@ -1,6 +1,6 @@
 {
   "name": "@callumbicknell/ssh-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server for interacting with remote machines over SSH using your existing OpenSSH configuration",
   "license": "MIT",
   "type": "module",
