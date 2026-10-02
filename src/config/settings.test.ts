@@ -17,6 +17,7 @@ describe("loadSettings", () => {
       maxOutputBytes: 1024,
       commandTimeoutMs: 5000,
       connectionTimeoutMs: 3000,
+      operationTimeoutMs: 30000,
       idleTimeoutMs: 1000,
     });
   });

@@ -5,6 +5,8 @@ export interface Settings {
   commandTimeoutMs: number;
   /** Timeout for establishing an SSH connection. */
   connectionTimeoutMs: number;
+  /** Timeout for a single SFTP file operation. */
+  operationTimeoutMs: number;
   /** How long an idle pooled connection is kept open. */
   idleTimeoutMs: number;
 }
@@ -13,6 +15,7 @@ export const DEFAULT_SETTINGS: Settings = {
   maxOutputBytes: 64 * 1024,
   commandTimeoutMs: 30_000,
   connectionTimeoutMs: 10_000,
+  operationTimeoutMs: 30_000,
   idleTimeoutMs: 120_000,
 };
 
@@ -20,6 +23,7 @@ const ENV_KEYS: Record<keyof Settings, string> = {
   maxOutputBytes: "SSH_MCP_MAX_OUTPUT",
   commandTimeoutMs: "SSH_MCP_COMMAND_TIMEOUT",
   connectionTimeoutMs: "SSH_MCP_CONNECTION_TIMEOUT",
+  operationTimeoutMs: "SSH_MCP_OPERATION_TIMEOUT",
   idleTimeoutMs: "SSH_MCP_IDLE_TIMEOUT",
 };
 

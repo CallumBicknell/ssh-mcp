@@ -8,7 +8,7 @@ export function registerListDirectoryTool(server: McpServer, manager: Connection
   server.registerTool(
     "ssh_list_directory",
     {
-      description: "List the contents of a directory on a remote SSH host.",
+      description: "List the contents of a directory on a remote SSH host (defaults to the remote user's home directory). Each entry includes type, size, permission bits and modification time.",
       inputSchema: {
         host: z.string().describe("SSH config alias of the target host"),
         path: z.string().optional().describe("Directory path (defaults to the remote user's home directory)"),
@@ -19,7 +19,7 @@ export function registerListDirectoryTool(server: McpServer, manager: Connection
         assertValidHost(host);
         const target = path === undefined || path.trim().length === 0 ? "." : path;
         const conn = await manager.getConnection(host);
-        const entries = await conn.listDirectory(target);
+        const entries = await conn.listDirectory(target, settings.operationTimeoutMs);
         if (entries.length === 0) {
           return { content: [{ type: "text" as const, text: `(empty directory: ${target})` }] };
         }

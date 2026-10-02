@@ -34,11 +34,13 @@ describe("registerTools", () => {
   it("registers all four tools", () => {
     const { server, tools } = makeServer();
     const manager = makeManager({});
-    registerTools(server as never, manager, DEFAULT_SETTINGS);
+    registerTools(server as never, manager, DEFAULT_SETTINGS, null);
     expect(tools.map((t) => t.name).sort()).toEqual([
       "ssh_exec",
+      "ssh_hosts",
       "ssh_list_directory",
       "ssh_read_file",
+      "ssh_stat",
       "ssh_write_file",
     ]);
   });
@@ -49,7 +51,7 @@ describe("ssh_exec handler", () => {
     const { server, tools } = makeServer();
     const conn = { exec: vi.fn(async () => result) };
     const manager = makeManager(conn);
-    registerTools(server as never, manager, DEFAULT_SETTINGS);
+    registerTools(server as never, manager, DEFAULT_SETTINGS, null);
     const tool = tools.find((t) => t.name === "ssh_exec")!;
     return { tool, conn, manager };
   }
@@ -114,7 +116,7 @@ describe("ssh_read_file handler", () => {
   it("returns file contents and truncation notice", async () => {
     const { server, tools } = makeServer();
     const conn = { readFile: vi.fn(async () => ({ text: "file body", truncated: true, bytes: 9 })) };
-    registerTools(server as never, makeManager(conn), DEFAULT_SETTINGS);
+    registerTools(server as never, makeManager(conn), DEFAULT_SETTINGS, null);
     const tool = tools.find((t) => t.name === "ssh_read_file")!;
     const res = await tool.handler({ host: "snow", path: "/etc/hostname" });
     expect(res.content[0]!.text).toContain("file body");
@@ -126,17 +128,17 @@ describe("ssh_write_file handler", () => {
   it("writes and reports success", async () => {
     const { server, tools } = makeServer();
     const conn = { writeFile: vi.fn(async () => {}) };
-    registerTools(server as never, makeManager(conn), DEFAULT_SETTINGS);
+    registerTools(server as never, makeManager(conn), DEFAULT_SETTINGS, null);
     const tool = tools.find((t) => t.name === "ssh_write_file")!;
     const res = await tool.handler({ host: "snow", path: "/tmp/x", content: "hello" });
     expect(res.isError).toBeFalsy();
-    expect(conn.writeFile).toHaveBeenCalledWith("/tmp/x", "hello");
+    expect(conn.writeFile).toHaveBeenCalledWith("/tmp/x", "hello", DEFAULT_SETTINGS.operationTimeoutMs);
   });
 
   it("surfaces write errors", async () => {
     const { server, tools } = makeServer();
     const conn = { writeFile: vi.fn(async () => Promise.reject(new Error("No such file or directory"))) };
-    registerTools(server as never, makeManager(conn), DEFAULT_SETTINGS);
+    registerTools(server as never, makeManager(conn), DEFAULT_SETTINGS, null);
     const tool = tools.find((t) => t.name === "ssh_write_file")!;
     const res = await tool.handler({ host: "snow", path: "/no/such/dir/x", content: "hi" });
     expect(res.isError).toBe(true);
@@ -153,7 +155,7 @@ describe("ssh_list_directory handler", () => {
         { name: "hosts", type: "file", size: 220, modifiedAt: "2026-01-01T00:00:00.000Z", mode: 0o100644 },
       ]),
     };
-    registerTools(server as never, makeManager(conn), DEFAULT_SETTINGS);
+    registerTools(server as never, makeManager(conn), DEFAULT_SETTINGS, null);
     const tool = tools.find((t) => t.name === "ssh_list_directory")!;
     const res = await tool.handler({ host: "snow", path: "/" });
     const text = res.content[0]!.text;

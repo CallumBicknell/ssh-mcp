@@ -7,7 +7,8 @@ import { assertValidHost } from "./hosts.js";
 export type ConnectFn = (resolved: ResolvedHost, connectionTimeoutMs: number) => Promise<SshConnection>;
 
 interface PooledEntry {
-  connection: SshConnection;
+  connection?: SshConnection;
+  pending?: Promise<SshConnection>;
   idleTimer?: NodeJS.Timeout;
 }
 
@@ -26,7 +27,12 @@ export class ConnectionManager {
     assertValidHost(host);
     const existing = this.connections.get(host);
     if (existing) {
-      if (existing.connection.isAlive()) {
+      if (existing.pending) {
+        // A connection attempt for this host is already in flight — share it
+        // instead of opening a duplicate connection.
+        return existing.pending;
+      }
+      if (existing.connection && existing.connection.isAlive()) {
         this.armIdleTimer(host, existing);
         return existing.connection;
       }
@@ -37,19 +43,56 @@ export class ConnectionManager {
         "No SSH client configuration found. Expected a config file at ~/.ssh/config (or SSH_CONFIG_PATH).",
       );
     }
-    const resolved = resolveHost(this.config, host);
-    const connection = await this.connect(resolved, this.settings.connectionTimeoutMs);
-    const entry: PooledEntry = { connection };
+    const entry: PooledEntry = {};
     this.connections.set(host, entry);
-    this.armIdleTimer(host, entry);
-    return connection;
+    let resolved: ResolvedHost;
+    try {
+      resolved = resolveHost(this.config, host);
+    } catch (err) {
+      this.connections.delete(host);
+      throw new Error(
+        `Invalid SSH configuration for host "${host}": ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+    const pending = this.connect(resolved, this.settings.connectionTimeoutMs);
+    entry.pending = pending;
+    try {
+      const connection = await pending;
+      if (this.connections.get(host) !== entry) {
+        // The pool was torn down (closeAll/remove) while we were connecting.
+        connection.close();
+        throw new Error(`Connection to host "${host}" was closed during establishment.`);
+      }
+      entry.connection = connection;
+      entry.pending = undefined;
+      this.armIdleTimer(host, entry);
+      return connection;
+    } catch (err) {
+      if (this.connections.get(host) === entry) {
+        this.connections.delete(host);
+      }
+      if (err instanceof Error && err.message.includes("closed during establishment")) {
+        throw err;
+      }
+      throw new Error(
+        `SSH connection failed for host "${host}": ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   private armIdleTimer(host: string, entry: PooledEntry): void {
     clearTimeout(entry.idleTimer);
     entry.idleTimer = setTimeout(() => {
-      entry.connection.close();
-      this.connections.delete(host);
+      const connection = entry.connection;
+      if (connection && connection.activeOperations > 0) {
+        // A command/SFTP operation is still running — defer eviction.
+        this.armIdleTimer(host, entry);
+        return;
+      }
+      connection?.close();
+      if (this.connections.get(host) === entry) {
+        this.connections.delete(host);
+      }
     }, this.settings.idleTimeoutMs);
     entry.idleTimer.unref?.();
   }
@@ -58,7 +101,7 @@ export class ConnectionManager {
     const entry = this.connections.get(host);
     if (entry) {
       clearTimeout(entry.idleTimer);
-      entry.connection.close();
+      entry.connection?.close();
       this.connections.delete(host);
     }
   }
